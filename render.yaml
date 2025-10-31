@@ -1,0 +1,13 @@
+services:
+  - type: web  # Defines a web service (your Streamlit app)
+    name: image-crypto  # Unique name for the service (becomes image-crypto.onrender.com)
+    env: python  # Runtime environment
+    plan: free  # Free tier (upgrades available)
+    buildCommand: pip install -r requirements.txt  # Installs deps from your requirements.txt
+    startCommand: streamlit run image_crypto_app.py --server.port $PORT --server.address 0.0.0.0  # Starts app on Render's port
+    autoDeploy: true  # Auto-deploys on git push
+
+# Optional: Add env vars here if needed (e.g., for secrets)
+# envVars:
+#   - key: PYTHON_VERSION
+#     value: 3.12
