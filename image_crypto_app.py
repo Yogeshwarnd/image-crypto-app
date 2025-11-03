@@ -1,13 +1,9 @@
-import streamlit as st
 import os
+import argparse
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 import base64
-import io
-
-# Page config
-st.set_page_config(page_title="Image AES Encryptor/Decryptor", layout="wide")
 
 def generate_key(key_length=32):
     """Generate a random AES key of specified length (16, 24, or 32 bytes)."""
@@ -21,119 +17,115 @@ def string_to_key(key_str):
     """Convert base64 string back to key bytes."""
     return base64.b64decode(key_str)
 
-@st.cache_data
-def encrypt_image(data, key):
-    """Encrypt image bytes with given key."""
+def encrypt_image(data, key, output_enc_file):
+    """Encrypt image bytes with given key and save to file."""
     iv = os.urandom(16)
     cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
     encryptor = cipher.encryptor()
-    
     padder = padding.PKCS7(algorithms.AES.block_size).padder()
     padded_data = padder.update(data) + padder.finalize()
-    
     ciphertext = encryptor.update(padded_data) + encryptor.finalize()
-    return iv + ciphertext
+    encrypted_data = iv + ciphertext
+    with open(output_enc_file, 'wb') as f:
+        f.write(encrypted_data)
+    return True
 
-@st.cache_data
-def decrypt_image(encrypted_data, key):
-    """Decrypt image bytes with given key."""
+def decrypt_image(encrypted_data, key, output_image_file):
+    """Decrypt image bytes with given key and save to file."""
     iv = encrypted_data[:16]
     ciphertext = encrypted_data[16:]
-    
     cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
     decryptor = cipher.decryptor()
-    
     padded_data = decryptor.update(ciphertext) + decryptor.finalize()
-    
     unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
-    return unpadder.update(padded_data) + unpadder.finalize()
+    decrypted_data = unpadder.update(padded_data) + unpadder.finalize()
+    with open(output_image_file, 'wb') as f:
+        f.write(decrypted_data)
+    return True
 
-# Sidebar for navigation
-st.sidebar.title("Navigation")
-page = st.sidebar.selectbox("Choose action:", ["Encrypt Image", "Decrypt Image"])
+def main():
+    parser = argparse.ArgumentParser(description="Image AES Encryptor/Decryptor CLI")
+    parser.add_argument('action', choices=['encrypt', 'decrypt'], help="Action to perform")
+    parser.add_argument('--input', '-i', required=True, help="Input file (image for encrypt, .enc for decrypt)")
+    parser.add_argument('--key-file', '-k', help="For decrypt: Path to key.txt file containing the base64 key")
+    parser.add_argument('--output', '-o', help="Output file path (optional, defaults to input.enc or input.jpg)")
+    parser.add_argument('--key-length', type=int, choices=[16, 24, 32], default=32, help="Key length in bytes (AES-128/192/256)")
 
-if page == "Encrypt Image":
-    st.title("🔒 Encrypt Your Image")
-    st.write("Upload an image to generate a random key, encrypt it, and download the secure file + key.")
-    
-    uploaded_file = st.file_uploader("Choose an image file (JPG, PNG, etc.)", type=['jpg', 'jpeg', 'png', 'bmp', 'gif'])
-    
-    if uploaded_file is not None:
+    args = parser.parse_args()
+
+    if args.action == 'encrypt':
+        if not os.path.exists(args.input):
+            print(f"Error: Input file '{args.input}' does not exist.")
+            return 1
+
         # Read image data
-        image_data = uploaded_file.read()
-        original_filename = uploaded_file.name
-        
+        with open(args.input, 'rb') as f:
+            image_data = f.read()
+
+        original_filename = os.path.basename(args.input)
+        output_enc_file = args.output or original_filename.rsplit('.', 1)[0] + '.enc'
+
         # Generate key
-        key = generate_key(32)  # AES-256
+        key = generate_key(args.key_length)
         key_str = key_to_string(key)
-        
-        if st.button("Generate Key & Encrypt"):
-            with st.spinner("Encrypting..."):
-                encrypted_data = encrypt_image(image_data, key)
-                
-                # Create downloadable encrypted file
-                encrypted_filename = original_filename.rsplit('.', 1)[0] + '.enc'
-                st.download_button(
-                    label="Download Encrypted Image",
-                    data=encrypted_data,
-                    file_name=encrypted_filename,
-                    mime="application/octet-stream"
-                )
-                
-                # Display key for copying/sharing
-                st.success("Encryption complete!")
-                st.subheader("Your Sharable Key (Copy this!):")
-                st.code(key_str, language='text')
-                
-                # Optional: Download key as file
-                key_data = f"Key for {original_filename}: {key_str}".encode('utf-8')
-                st.download_button(
-                    label="Download Key as TXT",
-                    data=key_data,
-                    file_name=f"{original_filename.rsplit('.', 1)[0]}_key.txt",
-                    mime="text/plain"
-                )
-                
-                # Preview original (optional)
-                st.image(image_data, caption="Original Image", use_column_width=True)
 
-elif page == "Decrypt Image":
-    st.title("🔓 Decrypt Your Image")
-    st.write("Upload the encrypted file and paste the key to decrypt and download the original image.")
-    
-    uploaded_enc_file = st.file_uploader("Choose encrypted file (.enc)", type='enc')
-    key_input = st.text_area("Paste the Key Here (Base64 string):", placeholder="e.g., VGVzdEtleTEyMzQ1Njc4OTBhYmNkZWY=")
-    
-    if uploaded_enc_file is not None and key_input.strip():
+        # Encrypt
+        if encrypt_image(image_data, key, output_enc_file):
+            print("Encryption complete!")
+            print(f"Encrypted file saved: {output_enc_file}")
+            print("\nYour Sharable Key (Copy this!):")
+            print(key_str)
+
+            # Save key as file
+            key_filename = original_filename.rsplit('.', 1)[0] + '_key.txt'
+            key_data = f"Key for {original_filename}: {key_str}".encode('utf-8')
+            with open(key_filename, 'wb') as f:
+                f.write(key_data)
+            print(f"Key file saved: {key_filename}")
+        else:
+            print("Encryption failed.")
+            return 1
+
+    elif args.action == 'decrypt':
+        if not os.path.exists(args.input):
+            print(f"Error: Input file '{args.input}' does not exist.")
+            return 1
+
+        if not args.key_file or not os.path.exists(args.key_file):
+            print(f"Error: Key file '{args.key_file}' does not exist.")
+            return 1
+
+        # Read encrypted data
+        with open(args.input, 'rb') as f:
+            enc_data = f.read()
+
+        # Read key from file
+        with open(args.key_file, 'r') as f:
+            key_line = f.read().strip()
+            # Extract base64 key (assuming format "Key for ...: <base64>")
+            if ': ' in key_line:
+                key_str = key_line.split(': ', 1)[1]
+            else:
+                key_str = key_line
+
         try:
-            # Read encrypted data
-            enc_data = uploaded_enc_file.read()
-            
-            # Convert key
-            key = string_to_key(key_input.strip())
-            
-            if st.button("Decrypt Image"):
-                with st.spinner("Decrypting..."):
-                    decrypted_data = decrypt_image(enc_data, key)
-                    
-                    # Guess original extension (you may need to adjust based on your files)
-                    original_ext = ".jpg"  # Default; in production, store extension with encrypted file
-                    decrypted_filename = uploaded_enc_file.name.rsplit('.', 1)[0] + original_ext
-                    
-                    st.success("Decryption complete!")
-                    st.download_button(
-                        label="Download Decrypted Image",
-                        data=decrypted_data,
-                        file_name=decrypted_filename,
-                        mime="image/jpeg"  # Adjust based on extension
-                    )
-                    
-                    # Preview decrypted
-                    st.image(decrypted_data, caption="Decrypted Image", use_column_width=True)
-                    
+            key = string_to_key(key_str)
         except Exception as e:
-            st.error(f"Decryption failed: {str(e)}. Check key and file match.")
+            print(f"Error: Invalid key format - {str(e)}")
+            return 1
 
-# Footer
-st.sidebar.markdown("---")
-st.sidebar.info("💡 Share the .enc file + key with anyone. They can decrypt using this app!")
+        original_ext = ".jpg"  # Default; adjust as needed
+        output_image_file = args.output or args.input.rsplit('.', 1)[0] + original_ext
+
+        # Decrypt
+        if decrypt_image(enc_data, key, output_image_file):
+            print("Decryption complete!")
+            print(f"Decrypted image saved: {output_image_file}")
+        else:
+            print("Decryption failed. Check key and file match.")
+            return 1
+
+    return 0
+
+if __name__ == "__main__":
+    exit(main())
