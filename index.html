@@ -4,58 +4,188 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image AES Encryptor/Decryptor</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f8f9fa; }
-        .page { display: none; }
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success-color: #059669;
+            --error-color: #dc2626;
+            --warning-color: #d97706;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { text-align: center; color: var(--primary-color); margin-bottom: 10px; font-size: 2.5em; }
+        .subtitle { text-align: center; color: var(--text-secondary); margin-bottom: 40px; font-size: 1.1em; }
+        nav {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            background: var(--card-bg);
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+        nav button {
+            padding: 12px 24px;
+            margin: 0 5px;
+            background: var(--bg-color);
+            color: var(--text-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        nav button.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        nav button:hover:not(.active) { background: #f1f5f9; border-color: var(--primary-color); }
+        .page { display: none; padding: 20px; background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow-lg); }
         .page.active { display: block; }
-        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; }
-        button:hover { background: #0056b3; }
-        button:disabled { background: #6c757d; cursor: not-allowed; }
-        input[type="file"], textarea { width: 100%; padding: 10px; margin: 5px 0; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
-        textarea { resize: vertical; min-height: 60px; }
-        img { max-width: 100%; height: auto; margin: 10px 0; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        nav { margin-bottom: 20px; }
-        nav button { background: #6c757d; margin-right: 10px; }
-        nav button.active { background: #007bff; }
-        .error { color: #dc3545; background: #f8d7da; padding: 10px; border-radius: 4px; margin: 10px 0; }
-        .success { color: #155724; background: #d4edda; padding: 10px; border-radius: 4px; margin: 10px 0; }
-        .key-section { background: #e9ecef; padding: 10px; border-radius: 4px; margin: 10px 0; }
-        #downloadLinks { margin-top: 10px; }
-        #downloadLinks a { display: inline-block; margin-right: 10px; text-decoration: none; }
+        .section { margin-bottom: 20px; }
+        h2 { color: var(--text-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+        .file-input-wrapper { position: relative; display: inline-block; width: 100%; margin-bottom: 15px; }
+        input[type="file"] { width: 100%; padding: 12px; border: 2px dashed var(--border-color); border-radius: 8px; background: var(--bg-color); transition: border-color 0.2s; }
+        input[type="file"]:hover { border-color: var(--primary-color); }
+        input[type="file"]:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            resize: vertical;
+            min-height: 80px;
+            font-family: monospace;
+            background: var(--bg-color);
+            transition: border-color 0.2s;
+        }
+        textarea:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        .btn {
+            padding: 12px 24px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px;
+        }
+        .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        .btn:disabled { background: #9ca3af; cursor: not-allowed; transform: none; }
+        .btn-success { background: var(--success-color); }
+        .btn-success:hover { background: #047857; }
+        .btn-warning { background: var(--warning-color); }
+        .btn-warning:hover { background: #b45309; }
+        .preview { text-align: center; margin: 20px 0; }
+        .preview img {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+        }
+        .result { margin-top: 20px; padding: 20px; border-radius: 8px; }
+        .success { background: #ecfdf5; border: 1px solid #bbf7d0; color: var(--success-color); }
+        .error { background: #fef2f2; border: 1px solid #fecaca; color: var(--error-color); }
+        .key-section { background: #f0f9ff; border: 1px solid #bae6fd; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .key-section strong { color: var(--text-primary); display: block; margin-bottom: 10px; }
+        .download-links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading { display: none; margin-left: 10px; }
+        .loading.active { display: inline-block; }
+        footer { text-align: center; margin-top: 40px; color: var(--text-secondary); font-size: 0.9em; }
+        @media (max-width: 768px) {
+            .container { padding: 10px; }
+            nav { flex-direction: column; }
+            nav button { margin: 5px 0; }
+            .download-links { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
-    <h1>🔒 Image AES Encryptor/Decryptor</h1>
-    <p><em>Client-side AES-256 encryption/decryption using Web Crypto API. No data leaves your browser!</em></p>
-    
-    <nav>
-        <button onclick="showPage('encrypt')" id="encrypt-btn" class="active">Encrypt Image</button>
-        <button onclick="showPage('decrypt')" id="decrypt-btn">Decrypt Image</button>
-    </nav>
-
-    <div id="encrypt" class="page active">
-        <h2>🔐 Encrypt Your Image</h2>
-        <p>Upload an image to generate a random key, encrypt it, and download the secure file + key.</p>
-        <input type="file" id="encryptFile" accept="image/*">
-        <button onclick="handleEncrypt()" id="encryptBtn">Generate Key & Encrypt</button>
+    <div class="container">
+        <h1><i class="fas fa-lock"></i> Image AES Encryptor/Decryptor</h1>
+        <p class="subtitle">Secure your images with AES-256 encryption. Everything processed client-side for privacy.</p>
         
-        <div id="encryptResult"></div>
-        <div id="originalPreview"></div>
-    </div>
+        <nav>
+            <button onclick="showPage('encrypt')" id="encrypt-btn" class="active">
+                <i class="fas fa-lock"></i> Encrypt
+            </button>
+            <button onclick="showPage('decrypt')" id="decrypt-btn">
+                <i class="fas fa-lock-open"></i> Decrypt
+            </button>
+        </nav>
 
-    <div id="decrypt" class="page">
-        <h2>🔓 Decrypt Your Image</h2>
-        <p>Upload the encrypted file (.enc) and paste the key to decrypt and download the original image.</p>
-        <input type="file" id="decryptFile" accept=".enc">
-        <textarea id="keyInput" placeholder="Paste the Base64 key here (e.g., VGVzdEtleTEyMzQ1Njc4OTBhYmNkZWY=)" required></textarea>
-        <button onclick="handleDecrypt()" id="decryptBtn">Decrypt Image</button>
-        
-        <div id="decryptResult"></div>
-        <div id="decryptedPreview"></div>
+        <div id="encrypt" class="page active">
+            <h2><i class="fas fa-file-image"></i> Encrypt Your Image</h2>
+            <p>Upload an image file (JPG, PNG, etc.) to generate a secure AES-256 key and encrypt it.</p>
+            <div class="section">
+                <div class="file-input-wrapper">
+                    <input type="file" id="encryptFile" accept="image/*">
+                </div>
+                <button class="btn" onclick="handleEncrypt()" id="encryptBtn">
+                    <i class="fas fa-key"></i> Generate Key & Encrypt
+                    <span class="spinner loading" id="encryptSpinner"></span>
+                </button>
+            </div>
+            <div id="encryptResult" class="result"></div>
+            <div id="originalPreview" class="preview"></div>
+        </div>
+
+        <div id="decrypt" class="page">
+            <h2><i class="fas fa-unlock"></i> Decrypt Your Image</h2>
+            <p>Upload the encrypted file (.enc) and paste the base64 key to recover your original image.</p>
+            <div class="section">
+                <div class="file-input-wrapper">
+                    <input type="file" id="decryptFile" accept=".enc">
+                </div>
+                <textarea id="keyInput" placeholder="Paste your base64-encoded key here...&#10;(Generated during encryption)"></textarea>
+                <button class="btn" onclick="handleDecrypt()" id="decryptBtn">
+                    <i class="fas fa-unlock-alt"></i> Decrypt Image
+                    <span class="spinner loading" id="decryptSpinner"></span>
+                </button>
+            </div>
+            <div id="decryptResult" class="result"></div>
+            <div id="decryptedPreview" class="preview"></div>
+        </div>
+
+        <footer>
+            <p><i class="fas fa-shield-alt"></i> Powered by Web Crypto API | Open Source | No data transmitted to servers</p>
+        </footer>
     </div>
 
     <script>
-        // Utility: Base64 encode/decode for keys and previews
+        // Utility functions
         function base64Encode(arrayBuffer) {
             const bytes = new Uint8Array(arrayBuffer);
             let binary = '';
@@ -74,7 +204,7 @@
             return bytes.buffer;
         }
 
-        // PKCS7 Padding
+        // PKCS7 Padding/Unpadding
         function pkcs7Pad(data, blockSize = 16) {
             const padded = new Uint8Array(data);
             const padLength = blockSize - (padded.length % blockSize);
@@ -90,25 +220,28 @@
             const unpadded = new Uint8Array(data);
             const padLength = unpadded[unpadded.length - 1];
             if (padLength > 16 || padLength === 0) throw new Error('Invalid padding');
+            for (let i = unpadded.length - padLength; i < unpadded.length; i++) {
+                if (unpadded[i] !== padLength) throw new Error('Invalid padding');
+            }
             return unpadded.slice(0, -padLength).buffer;
         }
 
-        // Generate random AES key (32 bytes for AES-256)
+        // Generate random AES-256 key
         async function generateKey() {
             const keyBytes = new Uint8Array(32);
             crypto.getRandomValues(keyBytes);
-            const keyBuffer = await crypto.subtle.importKey('raw', keyBuffer, 'AES-CBC', false, ['encrypt']);
-            const keyB64 = btoa(String.fromCharCode(...new Uint8Array(keyBuffer)));
-            return { key: keyBuffer, keyB64 };
+            const key = await crypto.subtle.importKey('raw', keyBytes.buffer, 'AES-CBC', false, ['encrypt']);
+            const keyB64 = btoa(String.fromCharCode(...keyBytes));
+            return { key, keyB64 };
         }
 
-        // Encrypt function
+        // Encrypt data
         async function encryptData(data, key) {
             const iv = new Uint8Array(16);
             crypto.getRandomValues(iv);
             const paddedData = pkcs7Pad(data);
             const encrypted = await crypto.subtle.encrypt(
-                { name: 'AES-CBC', iv: iv },
+                { name: 'AES-CBC', iv },
                 key,
                 paddedData
             );
@@ -118,13 +251,13 @@
             return combined.buffer;
         }
 
-        // Decrypt function
+        // Decrypt data
         async function decryptData(encryptedData, key) {
             const data = new Uint8Array(encryptedData);
             const iv = data.slice(0, 16);
             const ciphertext = data.slice(16);
             const decrypted = await crypto.subtle.decrypt(
-                { name: 'AES-CBC', iv: iv },
+                { name: 'AES-CBC', iv },
                 key,
                 ciphertext.buffer
             );
@@ -136,53 +269,55 @@
             const fileInput = document.getElementById('encryptFile');
             const file = fileInput.files[0];
             if (!file) {
-                showError('encrypt', 'Please select an image file.');
+                showMessage('encrypt', 'error', 'Please select an image file.');
                 return;
             }
 
             const btn = document.getElementById('encryptBtn');
+            const spinner = document.getElementById('encryptSpinner');
             btn.disabled = true;
-            btn.textContent = 'Encrypting...';
+            spinner.classList.add('active');
+            btn.innerHTML = '<i class="fas fa-cog fa-spin"></i> Encrypting...';
 
             try {
                 const arrayBuffer = await file.arrayBuffer();
                 const { key, keyB64 } = await generateKey();
-
                 const encryptedBuffer = await encryptData(arrayBuffer, key);
-                const encryptedB64 = base64Encode(encryptedBuffer); // For storage if needed, but we'll use blob for download
-
-                // Preview original
                 const originalB64 = base64Encode(arrayBuffer);
-                document.getElementById('originalPreview').innerHTML = `<img src="data:image/${file.type};base64,${originalB64}" alt="Original">`;
 
-                // Show result
+                // Preview
+                document.getElementById('originalPreview').innerHTML = `
+                    <h3><i class="fas fa-eye"></i> Original Preview</h3>
+                    <img src="data:${file.type};base64,${originalB64}" alt="Original Image">
+                `;
+
+                // Result
+                const encFilename = file.name.replace(/\.[^/.]+$/, '.enc');
+                const keyFilename = file.name.replace(/\.[^/.]+$/, '_key.txt');
                 document.getElementById('encryptResult').innerHTML = `
-                    <div class="success">
-                        <h3>Encryption Complete!</h3>
+                    <div class="success result">
+                        <h3><i class="fas fa-check-circle"></i> Encryption Successful!</h3>
                         <div class="key-section">
-                            <strong>Your Sharable Key (Copy this!):</strong><br>
+                            <strong><i class="fas fa-key"></i> Secure Key (Base64 - Copy & Share Safely)</strong>
                             <textarea readonly rows="3">${keyB64}</textarea>
+                            <small><i class="fas fa-info-circle"></i> Keep this key private and secure.</small>
                         </div>
-                        <div id="downloadLinks">
-                            <a href="${URL.createObjectURL(new Blob([encryptedBuffer], {type: 'application/octet-stream'}))} download="${file.name.replace(/\.[^/.]+$/, '.enc')}">
-                                <button>📥 Download Encrypted Image (.enc)</button>
+                        <div class="download-links">
+                            <a href="${URL.createObjectURL(new Blob([encryptedBuffer], {type: 'application/octet-stream'}))}" download="${encFilename}" class="btn btn-success">
+                                <i class="fas fa-download"></i> Download .enc File
                             </a>
-                            <a href="${URL.createObjectURL(new Blob([`Key for ${file.name}: ${keyB64}`], {type: 'text/plain'}))} download="${file.name.replace(/\.[^/.]+$/, '_key.txt')}">
-                                <button>📝 Download Key as TXT</button>
+                            <a href="${URL.createObjectURL(new Blob([`Key for ${file.name}: ${keyB64}`], {type: 'text/plain'}))}" download="${keyFilename}" class="btn btn-warning">
+                                <i class="fas fa-file-alt"></i> Download Key.txt
                             </a>
                         </div>
                     </div>
                 `;
-
-                // Store for potential reuse (though page reload clears)
-                window.currentEncrypted = encryptedBuffer;
-                window.currentKeyB64 = keyB64;
-                window.currentFilename = file.name;
             } catch (err) {
-                showError('encrypt', `Encryption failed: ${err.message}`);
+                showMessage('encrypt', 'error', `Encryption failed: ${err.message}`);
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Generate Key & Encrypt';
+                spinner.classList.remove('active');
+                btn.innerHTML = '<i class="fas fa-key"></i> Generate Key & Encrypt';
             }
         }
 
@@ -194,45 +329,60 @@
             const keyB64 = keyInput.value.trim();
 
             if (!file || !keyB64) {
-                showError('decrypt', 'Please select an encrypted file and provide the key.');
+                showMessage('decrypt', 'error', 'Please select an encrypted file and enter the key.');
                 return;
             }
 
             const btn = document.getElementById('decryptBtn');
+            const spinner = document.getElementById('decryptSpinner');
             btn.disabled = true;
-            btn.textContent = 'Decrypting...';
+            spinner.classList.add('active');
+            btn.innerHTML = '<i class="fas fa-cog fa-spin"></i> Decrypting...';
 
             try {
                 const arrayBuffer = await file.arrayBuffer();
                 const keyData = base64Decode(keyB64);
                 const key = await crypto.subtle.importKey('raw', keyData, 'AES-CBC', false, ['decrypt']);
-
                 const decryptedBuffer = await decryptData(arrayBuffer, key);
                 const decryptedB64 = base64Encode(decryptedBuffer);
+                const mimeType = 'image/jpeg'; // Default; can detect or user-select
 
-                // Assume JPG for preview/download; adjust if needed
-                const mimeType = 'image/jpeg';
-                document.getElementById('decryptedPreview').innerHTML = `<img src="data:${mimeType};base64,${decryptedB64}" alt="Decrypted">`;
+                // Preview
+                document.getElementById('decryptedPreview').innerHTML = `
+                    <h3><i class="fas fa-eye"></i> Decrypted Preview</h3>
+                    <img src="data:${mimeType};base64,${decryptedB64}" alt="Decrypted Image">
+                `;
 
-                // Show result
+                // Result
+                const decFilename = file.name.replace('.enc', '.jpg');
                 document.getElementById('decryptResult').innerHTML = `
-                    <div class="success">
-                        <h3>Decryption Complete!</h3>
-                        <a href="${URL.createObjectURL(new Blob([decryptedBuffer], {type: mimeType}))}" download="${file.name.replace('.enc', '.jpg')}">
-                            <button>📥 Download Decrypted Image (.jpg)</button>
-                        </a>
+                    <div class="success result">
+                        <h3><i class="fas fa-check-circle"></i> Decryption Successful!</h3>
+                        <div class="download-links">
+                            <a href="${URL.createObjectURL(new Blob([decryptedBuffer], {type: mimeType}))}" download="${decFilename}" class="btn btn-success">
+                                <i class="fas fa-download"></i> Download Image
+                            </a>
+                        </div>
                     </div>
                 `;
             } catch (err) {
-                showError('decrypt', `Decryption failed: ${err.message}. Check key and file match.`);
+                showMessage('decrypt', 'error', `Decryption failed: ${err.message}. Verify the key and file.`);
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Decrypt Image';
+                spinner.classList.remove('active');
+                btn.innerHTML = '<i class="fas fa-unlock-alt"></i> Decrypt Image';
             }
         }
 
-        function showError(page, msg) {
-            document.getElementById(`${page}Result`).innerHTML = `<div class="error"><h3>❌ ${msg}</h3></div>`;
+        function showMessage(page, type, msg) {
+            const resultDiv = document.getElementById(`${page}Result`);
+            const icon = type === 'error' ? 'fas fa-exclamation-triangle' : 'fas fa-info-circle';
+            const className = type === 'error' ? 'error' : 'success';
+            resultDiv.innerHTML = `
+                <div class="${className} result">
+                    <h3><i class="${icon}"></i> ${msg}</h3>
+                </div>
+            `;
         }
 
         function showPage(pageId) {
@@ -240,14 +390,22 @@
             document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
             document.getElementById(pageId).classList.add('active');
             document.getElementById(pageId + '-btn').classList.add('active');
-            // Clear results
-            document.getElementById(`${pageId}Result`).innerHTML = '';
-            document.getElementById(pageId === 'encrypt' ? 'originalPreview' : 'decryptedPreview').innerHTML = '';
+            // Clear results and previews
+            ['Result', 'Preview'].forEach(suffix => {
+                const el = document.getElementById(`${pageId}${suffix}`);
+                if (el) el.innerHTML = '';
+            });
         }
 
-        // Check Web Crypto support
+        // Browser support check
         if (!window.crypto || !window.crypto.subtle) {
-            document.body.innerHTML += '<div class="error"><h2>Your browser does not support Web Crypto API. Please use a modern browser like Chrome, Firefox, or Edge.</h2></div>';
+            document.querySelector('.container').innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 4em; color: var(--error-color);"></i>
+                    <h2>Your browser does not support Web Crypto API.</h2>
+                    <p>Please use a modern browser like Chrome, Firefox, Edge, or Safari.</p>
+                </div>
+            `;
         }
     </script>
 </body>
