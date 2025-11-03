@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image AES Encryptor/Decryptor</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f8f9fa; }
+        .page { display: none; }
+        .page.active { display: block; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        input[type="file"], textarea { width: 100%; padding: 10px; margin: 5px 0; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
+        textarea { resize: vertical; min-height: 60px; }
+        img { max-width: 100%; height: auto; margin: 10px 0; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        nav { margin-bottom: 20px; }
+        nav button { background: #6c757d; margin-right: 10px; }
+        nav button.active { background: #007bff; }
+        .error { color: #dc3545; background: #f8d7da; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .success { color: #155724; background: #d4edda; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .key-section { background: #e9ecef; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        #downloadLinks { margin-top: 10px; }
+        #downloadLinks a { display: inline-block; margin-right: 10px; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <h1>🔒 Image AES Encryptor/Decryptor</h1>
+    <p><em>Client-side AES-256 encryption/decryption using Web Crypto API. No data leaves your browser!</em></p>
+    
+    <nav>
+        <button onclick="showPage('encrypt')" id="encrypt-btn" class="active">Encrypt Image</button>
+        <button onclick="showPage('decrypt')" id="decrypt-btn">Decrypt Image</button>
+    </nav>
+
+    <div id="encrypt" class="page active">
+        <h2>🔐 Encrypt Your Image</h2>
+        <p>Upload an image to generate a random key, encrypt it, and download the secure file + key.</p>
+        <input type="file" id="encryptFile" accept="image/*">
+        <button onclick="handleEncrypt()" id="encryptBtn">Generate Key & Encrypt</button>
+        
+        <div id="encryptResult"></div>
+        <div id="originalPreview"></div>
+    </div>
+
+    <div id="decrypt" class="page">
+        <h2>🔓 Decrypt Your Image</h2>
+        <p>Upload the encrypted file (.enc) and paste the key to decrypt and download the original image.</p>
+        <input type="file" id="decryptFile" accept=".enc">
+        <textarea id="keyInput" placeholder="Paste the Base64 key here (e.g., VGVzdEtleTEyMzQ1Njc4OTBhYmNkZWY=)" required></textarea>
+        <button onclick="handleDecrypt()" id="decryptBtn">Decrypt Image</button>
+        
+        <div id="decryptResult"></div>
+        <div id="decryptedPreview"></div>
+    </div>
+
+    <script>
+        // Utility: Base64 encode/decode for keys and previews
+        function base64Encode(arrayBuffer) {
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+
+        function base64Decode(base64) {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        // PKCS7 Padding
+        function pkcs7Pad(data, blockSize = 16) {
+            const padded = new Uint8Array(data);
+            const padLength = blockSize - (padded.length % blockSize);
+            const newPadded = new Uint8Array(padded.length + padLength);
+            newPadded.set(padded);
+            for (let i = 0; i < padLength; i++) {
+                newPadded[padded.length + i] = padLength;
+            }
+            return newPadded.buffer;
+        }
+
+        function pkcs7Unpad(data) {
+            const unpadded = new Uint8Array(data);
+            const padLength = unpadded[unpadded.length - 1];
+            if (padLength > 16 || padLength === 0) throw new Error('Invalid padding');
+            return unpadded.slice(0, -padLength).buffer;
+        }
+
+        // Generate random AES key (32 bytes for AES-256)
+        async function generateKey() {
+            const keyBytes = new Uint8Array(32);
+            crypto.getRandomValues(keyBytes);
+            const keyBuffer = await crypto.subtle.importKey('raw', keyBuffer, 'AES-CBC', false, ['encrypt']);
+            const keyB64 = btoa(String.fromCharCode(...new Uint8Array(keyBuffer)));
+            return { key: keyBuffer, keyB64 };
+        }
+
+        // Encrypt function
+        async function encryptData(data, key) {
+            const iv = new Uint8Array(16);
+            crypto.getRandomValues(iv);
+            const paddedData = pkcs7Pad(data);
+            const encrypted = await crypto.subtle.encrypt(
+                { name: 'AES-CBC', iv: iv },
+                key,
+                paddedData
+            );
+            const combined = new Uint8Array(iv.length + encrypted.byteLength);
+            combined.set(iv, 0);
+            combined.set(new Uint8Array(encrypted), iv.length);
+            return combined.buffer;
+        }
+
+        // Decrypt function
+        async function decryptData(encryptedData, key) {
+            const data = new Uint8Array(encryptedData);
+            const iv = data.slice(0, 16);
+            const ciphertext = data.slice(16);
+            const decrypted = await crypto.subtle.decrypt(
+                { name: 'AES-CBC', iv: iv },
+                key,
+                ciphertext.buffer
+            );
+            return pkcs7Unpad(decrypted);
+        }
+
+        // Handle Encrypt
+        async function handleEncrypt() {
+            const fileInput = document.getElementById('encryptFile');
+            const file = fileInput.files[0];
+            if (!file) {
+                showError('encrypt', 'Please select an image file.');
+                return;
+            }
+
+            const btn = document.getElementById('encryptBtn');
+            btn.disabled = true;
+            btn.textContent = 'Encrypting...';
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const { key, keyB64 } = await generateKey();
+
+                const encryptedBuffer = await encryptData(arrayBuffer, key);
+                const encryptedB64 = base64Encode(encryptedBuffer); // For storage if needed, but we'll use blob for download
+
+                // Preview original
+                const originalB64 = base64Encode(arrayBuffer);
+                document.getElementById('originalPreview').innerHTML = `<img src="data:image/${file.type};base64,${originalB64}" alt="Original">`;
+
+                // Show result
+                document.getElementById('encryptResult').innerHTML = `
+                    <div class="success">
+                        <h3>Encryption Complete!</h3>
+                        <div class="key-section">
+                            <strong>Your Sharable Key (Copy this!):</strong><br>
+                            <textarea readonly rows="3">${keyB64}</textarea>
+                        </div>
+                        <div id="downloadLinks">
+                            <a href="${URL.createObjectURL(new Blob([encryptedBuffer], {type: 'application/octet-stream'}))} download="${file.name.replace(/\.[^/.]+$/, '.enc')}">
+                                <button>📥 Download Encrypted Image (.enc)</button>
+                            </a>
+                            <a href="${URL.createObjectURL(new Blob([`Key for ${file.name}: ${keyB64}`], {type: 'text/plain'}))} download="${file.name.replace(/\.[^/.]+$/, '_key.txt')}">
+                                <button>📝 Download Key as TXT</button>
+                            </a>
+                        </div>
+                    </div>
+                `;
+
+                // Store for potential reuse (though page reload clears)
+                window.currentEncrypted = encryptedBuffer;
+                window.currentKeyB64 = keyB64;
+                window.currentFilename = file.name;
+            } catch (err) {
+                showError('encrypt', `Encryption failed: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generate Key & Encrypt';
+            }
+        }
+
+        // Handle Decrypt
+        async function handleDecrypt() {
+            const fileInput = document.getElementById('decryptFile');
+            const keyInput = document.getElementById('keyInput');
+            const file = fileInput.files[0];
+            const keyB64 = keyInput.value.trim();
+
+            if (!file || !keyB64) {
+                showError('decrypt', 'Please select an encrypted file and provide the key.');
+                return;
+            }
+
+            const btn = document.getElementById('decryptBtn');
+            btn.disabled = true;
+            btn.textContent = 'Decrypting...';
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const keyData = base64Decode(keyB64);
+                const key = await crypto.subtle.importKey('raw', keyData, 'AES-CBC', false, ['decrypt']);
+
+                const decryptedBuffer = await decryptData(arrayBuffer, key);
+                const decryptedB64 = base64Encode(decryptedBuffer);
+
+                // Assume JPG for preview/download; adjust if needed
+                const mimeType = 'image/jpeg';
+                document.getElementById('decryptedPreview').innerHTML = `<img src="data:${mimeType};base64,${decryptedB64}" alt="Decrypted">`;
+
+                // Show result
+                document.getElementById('decryptResult').innerHTML = `
+                    <div class="success">
+                        <h3>Decryption Complete!</h3>
+                        <a href="${URL.createObjectURL(new Blob([decryptedBuffer], {type: mimeType}))}" download="${file.name.replace('.enc', '.jpg')}">
+                            <button>📥 Download Decrypted Image (.jpg)</button>
+                        </a>
+                    </div>
+                `;
+            } catch (err) {
+                showError('decrypt', `Decryption failed: ${err.message}. Check key and file match.`);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Decrypt Image';
+            }
+        }
+
+        function showError(page, msg) {
+            document.getElementById(`${page}Result`).innerHTML = `<div class="error"><h3>❌ ${msg}</h3></div>`;
+        }
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            document.getElementById(pageId + '-btn').classList.add('active');
+            // Clear results
+            document.getElementById(`${pageId}Result`).innerHTML = '';
+            document.getElementById(pageId === 'encrypt' ? 'originalPreview' : 'decryptedPreview').innerHTML = '';
+        }
+
+        // Check Web Crypto support
+        if (!window.crypto || !window.crypto.subtle) {
+            document.body.innerHTML += '<div class="error"><h2>Your browser does not support Web Crypto API. Please use a modern browser like Chrome, Firefox, or Edge.</h2></div>';
+        }
+    </script>
+</body>
+</html>
